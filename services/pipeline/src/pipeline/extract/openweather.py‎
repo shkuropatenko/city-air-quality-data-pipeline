@@ -18,4 +18,16 @@ def geocode_location(location, api_key):
   )
 
   response.raise_for_status()
-  return response.json()
+
+
+  data = response.json()
+
+  if not data:
+    raise ValueError(f"Location not found: {query}")
+  
+  first_match = data[0]
+
+  return {
+    "lat": first_match["lat"],
+    "lon": first_match["lon"],
+  }
