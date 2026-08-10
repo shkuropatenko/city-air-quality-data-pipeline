@@ -31,3 +31,34 @@ def geocode_location(location, api_key):
     "lat": first_match["lat"],
     "lon": first_match["lon"],
   }
+
+AIR_POLLUTION_HISTORY_URL = (
+    "https://api.openweathermap.org/data/2.5/air_pollution/history"
+)
+
+def fetch_air_pollution_history(lat, lon, start, end, api_key):
+  if start > end:
+    raise ValueError("Start time must be before or equal to end time")
+
+  params = {
+    "lat": lat,
+    "lon": lon,
+    "start": start,
+    "end": end,
+    "appid": api_key,
+  }
+
+  response = requests.get(
+    AIR_POLLUTION_HISTORY_URL,
+    params=params,
+    timeout=30,
+  )
+
+  response.raise_for_status()
+
+  data = response.json()
+
+  if not data.get("list"):
+    raise ValueError("No air pollution data returned")
+
+  return data
