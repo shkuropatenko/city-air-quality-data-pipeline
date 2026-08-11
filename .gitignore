@@ -157,6 +157,7 @@ data/
 *.pid
 .tools/
 
-
+.idea
+.python-version
 .DS_Store
 .history/
