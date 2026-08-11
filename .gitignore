@@ -161,3 +161,5 @@ data/
 .python-version
 .DS_Store
 .history/
+
+test_api_manual.py
