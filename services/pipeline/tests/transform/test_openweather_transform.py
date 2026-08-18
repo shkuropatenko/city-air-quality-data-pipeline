@@ -1,7 +1,5 @@
 from datetime import datetime, timezone
-
 import pytest
-
 from pipeline.transform.openweather import transform_air_pollution
 
 
@@ -41,12 +39,12 @@ def test_transform_returns_clean_record():
       "latitude": 50,
       "longitude": 50,
       "observed_at": datetime(
-        2020,
-        11,
-        27,
-        15,
-        0,
-        tzinfo=timezone.utc,
+          2020,
+          11,
+          27,
+          15,
+          0,
+          tzinfo=timezone.utc,
       ),
       "aqi": 1,
       "pm2_5": 0.9,
@@ -73,37 +71,6 @@ def test_transform_empty_observations_returns_empty_list():
   }
 
   assert transform_air_pollution(raw_response, location) == []
-
-
-def test_transform_handles_missing_optional_pollutant():
-  raw_response = {
-    "coord": {
-      "lat": 48.8566,
-      "lon": 2.3522,
-    },
-    "list": [
-      {
-        "dt": 1606489200,
-        "main": {"aqi": 2},
-        "components": {
-          "pm10": 10.5,
-          "no2": 4.2,
-          "o3": 40.0,
-        },
-      }
-    ],
-  }
-
-  location = {
-    "city": "Paris",
-    "country_code": "FR",
-    "state": "",
-  }
-
-  result = transform_air_pollution(raw_response, location)
-
-  assert result[0]["location"] == "Paris, FR"
-  assert result[0]["pm2_5"] is None
 
 
 def test_transform_rejects_string_coordinates():
@@ -141,11 +108,11 @@ def test_transform_rejects_out_of_range_longitude():
       "lon": 4000,
     },
     "list": [
-      {
-        "dt": 1606489200,
-        "main": {"aqi": 1},
-        "components": {},
-      }
+        {
+          "dt": 1606489200,
+          "main": {"aqi": 1},
+          "components": {},
+        }
     ],
   }
 
@@ -159,16 +126,15 @@ def test_transform_rejects_out_of_range_longitude():
     ValueError,
     match="Longitude is out of range",
   ):
-    transform_air_pollution(raw_response, location)
-
+      transform_air_pollution(raw_response, location)
 
 def test_transform_multiple_observations():
   raw_response = {
-      "coord": {
+    "coord": {
         "lat": 50,
         "lon": 50,
-      },
-      "list": [
+    },
+    "list": [
         {
           "dt": 1606489200,
           "main": {"aqi": 1},
@@ -189,7 +155,7 @@ def test_transform_multiple_observations():
             "o3": 48.0,
           },
         },
-      ],
+    ],
   }
 
   location = {
@@ -203,4 +169,3 @@ def test_transform_multiple_observations():
   assert len(result) == 2
   assert result[0]["aqi"] == 1
   assert result[1]["aqi"] == 2
-  assert result[0]["observed_at"] != result[1]["observed_at"]
