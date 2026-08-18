@@ -1,8 +1,9 @@
 from pipeline.transform.openweather_normalization import (
-    normalize_aqi,
-    normalize_number,
-    normalize_timestamp,
+  normalize_aqi,
+  normalize_number,
+  normalize_timestamp,
 )
+
 
 def _build_location_label(location):
   parts = [
@@ -42,23 +43,23 @@ def transform_air_pollution(raw_response, location):
     return []
 
   latitude, longitude = _validate_coordinates(raw_response)
-  location_label = _build_location_label(location)
 
   records = []
+  location_label = _build_location_label(location)
 
   for item in observations:
-    observed_at = normalize_timestamp(item.get("dt"))
-    aqi = normalize_aqi(
-      item.get("main", {}).get("aqi")
+    observed_at = normalize_timestamp(
+      item.get("dt"),
+      "dt",
     )
 
-    # Required fields:
-    # invalid timestamp or AQI means this observation
-    # cannot become a clean record.
+    aqi = normalize_aqi(
+      item.get("main", {}).get("aqi"),
+      "main.aqi",
+    )
+
     if observed_at is None or aqi is None:
       continue
-
-    components = item.get("components", {})
 
     record = {
       "location": location_label,
@@ -66,10 +67,22 @@ def transform_air_pollution(raw_response, location):
       "longitude": longitude,
       "observed_at": observed_at,
       "aqi": aqi,
-      "pm2_5": normalize_number(components.get("pm2_5")),
-      "pm10": normalize_number(components.get("pm10")),
-      "no2": normalize_number(components.get("no2")),
-      "o3": normalize_number(components.get("o3")),
+      "pm2_5": normalize_number(
+        item.get("components", {}).get("pm2_5"),
+        "components.pm2_5",
+      ),
+      "pm10": normalize_number(
+        item.get("components", {}).get("pm10"),
+        "components.pm10",
+      ),
+      "no2": normalize_number(
+        item.get("components", {}).get("no2"),
+        "components.no2",
+      ),
+      "o3": normalize_number(
+        item.get("components", {}).get("o3"),
+        "components.o3",
+      ),
     }
 
     records.append(record)
