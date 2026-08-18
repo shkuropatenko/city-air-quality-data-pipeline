@@ -157,6 +157,9 @@ data/
 *.pid
 .tools/
 
-
+.idea
+.python-version
 .DS_Store
 .history/
+
+test_api_manual.py
