@@ -33,19 +33,20 @@ def _validate_coordinates(raw_response):
   if not -180 <= lon <= 180:
     raise ValueError("Longitude is out of range")
 
-  return lat, lon
+  return float(lat), float(lon)
 
 
 def transform_air_pollution(raw_response, location):
   observations = raw_response.get("list", [])
 
   if not observations:
-    return []
+      return []
 
   latitude, longitude = _validate_coordinates(raw_response)
+  location_label = _build_location_label(location)
 
   records = []
-  location_label = _build_location_label(location)
+  seen = set()
 
   for item in observations:
     observed_at = normalize_timestamp(
@@ -58,8 +59,20 @@ def transform_air_pollution(raw_response, location):
       "main.aqi",
     )
 
-    if observed_at is None or aqi is None:
+    if observed_at is None:
+      raise ValueError("Missing or invalid timestamp")
+
+    if aqi is None:
+      raise ValueError("Missing or invalid AQI")
+
+    key = (location_label, observed_at)
+
+    if key in seen:
       continue
+
+    seen.add(key)
+
+    components = item.get("components", {})
 
     record = {
       "location": location_label,
@@ -68,19 +81,19 @@ def transform_air_pollution(raw_response, location):
       "observed_at": observed_at,
       "aqi": aqi,
       "pm2_5": normalize_number(
-        item.get("components", {}).get("pm2_5"),
+        components.get("pm2_5"),
         "components.pm2_5",
       ),
       "pm10": normalize_number(
-        item.get("components", {}).get("pm10"),
+        components.get("pm10"),
         "components.pm10",
       ),
       "no2": normalize_number(
-        item.get("components", {}).get("no2"),
+        components.get("no2"),
         "components.no2",
       ),
       "o3": normalize_number(
-        item.get("components", {}).get("o3"),
+        components.get("o3"),
         "components.o3",
       ),
     }
