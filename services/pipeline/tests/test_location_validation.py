@@ -1,4 +1,4 @@
-from pipeline.input.location_validation import validate_locations
+from pipeline.extract.location_validation import validate_locations
 
 
 def test_valid_location():
