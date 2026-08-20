@@ -1,4 +1,4 @@
-"""SCRUM-29 - Automated Transform Tests.
+"""Automated Transform Tests.
 
 Tests for:
     services/pipeline/src/pipeline/transform/openweather.py
