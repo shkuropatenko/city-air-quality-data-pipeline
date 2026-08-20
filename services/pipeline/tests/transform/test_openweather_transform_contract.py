@@ -1,4 +1,4 @@
-"""Automated Transform Tests.
+"""SCRUM-29 - Automated Transform Tests.
 
 Tests for:
     services/pipeline/src/pipeline/transform/openweather.py
@@ -11,8 +11,11 @@ API and do not write to a database.
 """
 
 from datetime import datetime, timezone
+
 import pytest
+
 from pipeline.transform.openweather import transform_air_pollution
+
 
 @pytest.fixture
 def location_context():
@@ -21,6 +24,7 @@ def location_context():
         "country_code": "US",
         "state": "NC",
     }
+
 
 @pytest.fixture
 def representative_raw_response():
@@ -50,7 +54,8 @@ def representative_raw_response():
         ],
     }
 
-# main test
+
+# Main clean-contract test
 def test_transform_representative_successful_response(
     representative_raw_response,
     location_context,
@@ -80,13 +85,11 @@ def test_transform_representative_successful_response(
 
     assert record["location"] == "Raleigh, US, NC"
 
-    # Numeric types are normalized for the clean dataset.
-    assert record["latitude"] == 50.0
-    assert record["longitude"] == 50.0
-    assert isinstance(record["latitude"], float)
-    assert isinstance(record["longitude"], float)
+    # Coordinates are validated by the transform.
+    assert record["latitude"] == 50
+    assert record["longitude"] == 50
 
-    # Unix seconds are normalized to a timezone-aware UTC datetime.
+    # SCRUM-26 normalization converts Unix seconds to aware UTC datetime.
     assert record["observed_at"] == datetime(
         2020,
         11,
@@ -110,7 +113,8 @@ def test_transform_representative_successful_response(
     assert isinstance(record["no2"], float)
     assert isinstance(record["o3"], float)
 
-# test for couple observations
+
+# Multiple observations
 def test_transform_supports_multiple_observations(
     representative_raw_response,
     location_context,
@@ -139,7 +143,8 @@ def test_transform_supports_multiple_observations(
     assert records[1]["aqi"] == 2
     assert records[1]["pm2_5"] == pytest.approx(4.2)
 
-# empty test
+
+# Empty response
 def test_transform_empty_response_returns_empty_list(location_context):
     """An empty observation list returns an empty clean result."""
     raw_response = {
@@ -152,7 +157,8 @@ def test_transform_empty_response_returns_empty_list(location_context):
 
     assert transform_air_pollution(raw_response, location_context) == []
 
-# missed field
+
+# Missing optional fields
 def test_transform_missing_optional_fields_are_none(location_context):
     """Missing optional pollutant fields do not reject the observation."""
     raw_response = {
@@ -180,144 +186,146 @@ def test_transform_missing_optional_fields_are_none(location_context):
     assert records[0]["no2"] is None
     assert records[0]["o3"] is None
 
-# Required fields tests
+
+# Missing required coordinates
 @pytest.mark.parametrize(
-    "raw_response",
+    "coord",
     [
-        # Missing latitude.
+        {"lon": -78.6382},
+        {"lat": 35.7796},
+    ],
+)
+def test_transform_rejects_missing_coordinates(
+    coord,
+    location_context,
+):
+    """Missing required coordinates raise the transform's defined ValueError."""
+    raw_response = {
+        "coord": coord,
+        "list": [
+            {
+                "main": {"aqi": 2},
+                "components": {},
+                "dt": 1606489200,
+            }
+        ],
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="Latitude and longitude must be numeric",
+    ):
+        transform_air_pollution(raw_response, location_context)
+
+
+# Malformed required coordinates
+@pytest.mark.parametrize(
+    "coord",
+    [
         {
-            "coord": {"lon": -78.6382},
-            "list": [
-                {
-                    "main": {"aqi": 2},
-                    "components": {},
-                    "dt": 1606489200,
-                }
-            ],
+            "lon": -78.6382,
+            "lat": "not-a-number",
         },
-        # Missing longitude.
         {
-            "coord": {"lat": 35.7796},
-            "list": [
-                {
-                    "main": {"aqi": 2},
-                    "components": {},
-                    "dt": 1606489200,
-                }
-            ],
-        },
-        # Missing AQI.
-        {
-            "coord": {
-                "lon": -78.6382,
-                "lat": 35.7796,
-            },
-            "list": [
-                {
-                    "main": {},
-                    "components": {},
-                    "dt": 1606489200,
-                }
-            ],
-        },
-        # Missing timestamp.
-        {
-            "coord": {
-                "lon": -78.6382,
-                "lat": 35.7796,
-            },
-            "list": [
-                {
-                    "main": {"aqi": 2},
-                    "components": {},
-                }
-            ],
+            "lon": "not-a-number",
+            "lat": 35.7796,
         },
     ],
 )
-
-def test_transform_rejects_missing_required_fields(
-    raw_response,
+def test_transform_rejects_malformed_coordinates(
+    coord,
     location_context,
 ):
-    """Missing fields required by the clean contract are rejected."""
-    with pytest.raises((KeyError, ValueError, TypeError)):
+    """Malformed coordinates raise the transform's defined ValueError."""
+    raw_response = {
+        "coord": coord,
+        "list": [
+            {
+                "main": {"aqi": 2},
+                "components": {},
+                "dt": 1606489200,
+            }
+        ],
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="Latitude and longitude must be numeric",
+    ):
         transform_air_pollution(raw_response, location_context)
 
-# Malformed required fields tests
+
+# Missing required observation fields
 @pytest.mark.parametrize(
-    "raw_response",
+    "item",
     [
-        # Malformed latitude.
         {
-            "coord": {
-                "lon": -78.6382,
-                "lat": "not-a-number",
-            },
-            "list": [
-                {
-                    "main": {"aqi": 2},
-                    "components": {},
-                    "dt": 1606489200,
-                }
-            ],
+            "main": {},
+            "components": {},
+            "dt": 1606489200,
         },
-        # Malformed longitude.
         {
-            "coord": {
-                "lon": "not-a-number",
-                "lat": 35.7796,
-            },
-            "list": [
-                {
-                    "main": {"aqi": 2},
-                    "components": {},
-                    "dt": 1606489200,
-                }
-            ],
-        },
-        # Malformed AQI.
-        {
-            "coord": {
-                "lon": -78.6382,
-                "lat": 35.7796,
-            },
-            "list": [
-                {
-                    "main": {"aqi": "bad-aqi"},
-                    "components": {},
-                    "dt": 1606489200,
-                }
-            ],
-        },
-        # Malformed timestamp.
-        {
-            "coord": {
-                "lon": -78.6382,
-                "lat": 35.7796,
-            },
-            "list": [
-                {
-                    "main": {"aqi": 2},
-                    "components": {},
-                    "dt": "not-a-timestamp",
-                }
-            ],
+            "main": {"aqi": 2},
+            "components": {},
         },
     ],
 )
-
-def test_transform_rejects_malformed_required_fields(
-    raw_response,
+def test_transform_skips_missing_required_observation_fields(
+    item,
     location_context,
 ):
-    """Malformed required values must not silently enter clean data."""
-    with pytest.raises((ValueError, TypeError)):
-        transform_air_pollution(raw_response, location_context)
+    """Observations missing required AQI or timestamp are skipped safely."""
+    raw_response = {
+        "coord": {
+            "lon": -78.6382,
+            "lat": 35.7796,
+        },
+        "list": [item],
+    }
 
-# Duplicates test
+    assert transform_air_pollution(raw_response, location_context) == []
+
+
+# Malformed/invalid required observation values
+@pytest.mark.parametrize(
+    "item",
+    [
+        {
+            "main": {"aqi": "bad-aqi"},
+            "components": {},
+            "dt": 1606489200,
+        },
+        {
+            "main": {"aqi": 6},
+            "components": {},
+            "dt": 1606489200,
+        },
+        {
+            "main": {"aqi": 2},
+            "components": {},
+            "dt": "not-a-timestamp",
+        },
+    ],
+)
+def test_transform_skips_malformed_required_observation_values(
+    item,
+    location_context,
+):
+    """Malformed or invalid required observation values are skipped safely."""
+    raw_response = {
+        "coord": {
+            "lon": -78.6382,
+            "lat": 35.7796,
+        },
+        "list": [item],
+    }
+
+    assert transform_air_pollution(raw_response, location_context) == []
+
+
+# Repeated records/timestamps
 def test_transform_deduplicates_repeated_observations(location_context):
-    """Repeated location/timestamp observations appear only once."""
+    """Repeated location/timestamp observations should appear only once."""
     observation = {
         "main": {"aqi": 2},
         "components": {
@@ -344,14 +352,20 @@ def test_transform_deduplicates_repeated_observations(location_context):
 
     assert len(records) == 1
 
-# no state test
-def test_transform_location_without_optional_state(representative_raw_response):
+
+# Optional state
+def test_transform_location_without_optional_state(
+    representative_raw_response,
+):
     """State is optional in the location context."""
     location = {
         "city": "Paris",
         "country_code": "FR",
     }
 
-    records = transform_air_pollution(representative_raw_response, location)
+    records = transform_air_pollution(
+        representative_raw_response,
+        location,
+    )
 
     assert records[0]["location"] == "Paris, FR"
