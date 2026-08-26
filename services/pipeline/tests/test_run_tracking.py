@@ -138,3 +138,18 @@ def test_finish_pipeline_run_rejects_negative_count():
     )
 
   connection.execute.assert_not_called()
+
+# check finish pipeline run / unknown run_id
+def test_finish_pipeline_run_rejects_unknown_run_id():
+  connection = Mock()
+  connection.execute.return_value.rowcount = 0
+
+  with pytest.raises(
+    ValueError,
+    match="Pipeline run 999 was not found",
+  ):
+    finish_pipeline_run(
+      connection,
+      run_id=999,
+      status="success",
+    )
