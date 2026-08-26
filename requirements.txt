@@ -1,2 +1,6 @@
 requests
 pytest
+python-dotenv
+sqlalchemy
+alembic
+psycopg2-binary
