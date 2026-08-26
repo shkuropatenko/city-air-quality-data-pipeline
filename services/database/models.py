@@ -26,6 +26,7 @@ class Location(Base):
 
 
 from sqlalchemy import DateTime, ForeignKey, SmallInteger, UniqueConstraint, Integer, text
+from sqlalchemy.dialects.postgresql import JSONB
 
 class AirQualityRecord(Base):
     __tablename__ = "air_quality_records"
@@ -59,4 +60,11 @@ class PipelineRun(Base):
         CheckConstraint("status IN ('running', 'success', 'failed')"),
         CheckConstraint("records_processed >= 0"),
     )
-    
+
+class RawApiResponse(Base):
+    __tablename__ = "raw_api_responses"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
