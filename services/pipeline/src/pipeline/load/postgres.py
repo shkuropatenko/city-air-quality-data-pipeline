@@ -4,7 +4,11 @@ from sqlalchemy import insert
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.engine import Connection
 
-from services.database.models import AirQualityRecord, RawApiResponse
+from services.database.models import (
+    AirQualityRecord,
+    Location,
+    RawApiResponse,
+)
 
 
 _air_quality_insert = postgresql_insert(AirQualityRecord)
@@ -33,6 +37,35 @@ def prepare_air_quality_values(record):
     "o3": record.get("o3"),
   }
 
+def resolve_location_id(
+  connection: Connection,
+  location: dict,
+  latitude: float,
+  longitude: float,
+) -> int:
+  """Create or find a location and return its database id."""
+
+  statement = postgresql_insert(Location).values(
+    city=location["city"],
+    country_code=location["country_code"],
+    state=location.get("state") or None,
+    latitude=latitude,
+    longitude=longitude,
+  )
+
+  statement = statement.on_conflict_do_update(
+    index_elements=[
+      "city",
+      "country_code",
+      "latitude",
+      "longitude",
+    ],
+    set_={
+      "state": statement.excluded.state,
+    },
+  ).returning(Location.id)
+
+  return connection.execute(statement).scalar_one()
 
 def save_transformed_records(
   connection: Connection,
