@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from pipeline import scheduler
+from pipeline.orchestration import scheduler
 from pipeline.extract.location_validation import LocationValidationError
 
 

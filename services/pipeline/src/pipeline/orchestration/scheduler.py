@@ -79,7 +79,7 @@ def run_scheduled_pipeline() -> dict:
 	if result.get("status") != "success":
 		raise RuntimeError(f"Scheduled pipeline failed: {result}")
 
-    return result
+	return result
 
 
 @flow(name=FLOW_NAME)
