@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy.engine import Connection
@@ -17,6 +18,9 @@ from pipeline.run_tracking import (
 )
 from pipeline.transform.openweather import transform_air_pollution
 
+logger = logging.getLogger(__name__)
+
+
 def run_pipeline(
     connection: Connection,
     locations: list[dict],
@@ -27,9 +31,29 @@ def run_pipeline(
     records_processed = 0
     errors = []
 
+    logger.info(
+        "Pipeline started: run_id=%s locations=%d start=%s end=%s",
+        run_id,
+        len(locations),
+        start,
+        end,
+    )
+
     for location in locations:
+
+        city = location.get("city", "unknown")
+        stage = "extract"
+
         try:
             with connection.begin_nested():
+
+                logger.info(
+                    "Stage started: run_id=%s city=%s stage=%s",
+                    run_id,
+                    city,
+                    stage,
+                )
+
                 coords = geocode_location(location)
 
                 raw_response = fetch_air_pollution_history(
@@ -37,6 +61,22 @@ def run_pipeline(
                     coords["lon"],
                     start,
                     end,
+                )
+
+                logger.info(
+                    "Stage completed: run_id=%s city=%s stage=%s",
+                    run_id,
+                    city,
+                    stage,
+                )
+
+                stage = "raw_persistence"
+
+                logger.info(
+                    "Stage started: run_id=%s city=%s stage=%s",
+                    run_id,
+                    city,
+                    stage,
                 )
 
                 location_id = resolve_location_id(
@@ -53,9 +93,42 @@ def run_pipeline(
                     raw_response,
                 )
 
+                logger.info(
+                    "Stage completed: run_id=%s city=%s stage=%s",
+                    run_id,
+                    city,
+                    stage,
+                )
+
+                stage = "transform"
+
+                logger.info(
+                    "Stage started: run_id=%s city=%s stage=%s",
+                    run_id,
+                    city,
+                    stage,
+                )
+
                 records = transform_air_pollution(
                     raw_response,
                     location,
+                )
+
+                logger.info(
+                    "Stage completed: run_id=%s city=%s stage=%s records=%d",
+                    run_id,
+                    city,
+                    stage,
+                    len(records),
+                )
+
+                stage = "load"
+
+                logger.info(
+                    "Stage started: run_id=%s city=%s stage=%s",
+                    run_id,
+                    city,
+                    stage,
                 )
 
                 save_transformed_records(
@@ -64,10 +137,24 @@ def run_pipeline(
                     records,
                 )
 
+                logger.info(
+                    "Stage completed: run_id=%s city=%s stage=%s records=%d",
+                    run_id,
+                    city,
+                    stage,
+                    len(records),
+                )
+
                 records_processed += len(records)
 
         except Exception as exc:
-            city = location.get("city", "unknown")
+            logger.exception(
+                "Stage failed: run_id=%s city=%s stage=%s error=%s",
+                run_id,
+                city,
+                stage,
+                exc,
+            )
             errors.append(f"{city}: {exc}")
             continue
 
@@ -80,6 +167,20 @@ def run_pipeline(
         records_processed=records_processed,
         error_message="; ".join(errors) if errors else None,
     )
+
+    if errors:
+        logger.error(
+            "Pipeline failed: run_id=%s records_processed=%d errors=%d",
+            run_id,
+            records_processed,
+            len(errors),
+        )
+    else:
+        logger.info(
+            "Pipeline succeeded: run_id=%s records_processed=%d",
+            run_id,
+            records_processed,
+        )
 
     return {
         "run_id": run_id,
