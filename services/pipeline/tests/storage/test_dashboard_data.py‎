@@ -1,0 +1,215 @@
+from datetime import datetime, timezone
+from unittest.mock import Mock
+
+import pytest
+from sqlalchemy import insert
+from sqlalchemy.exc import SQLAlchemyError
+
+from services.dashboard.data import (
+  get_available_locations,
+  get_location_observations,
+)
+from services.database.models import AirQualityRecord, Location
+
+
+def _insert_location(
+  connection,
+  *,
+  city: str,
+  country_code: str,
+  state: str | None,
+  latitude: float,
+  longitude: float,
+) -> int:
+  statement = (
+    insert(Location)
+    .values(
+      city=city,
+      country_code=country_code,
+      state=state,
+      latitude=latitude,
+      longitude=longitude,
+    )
+    .returning(Location.id)
+  )
+  return connection.execute(statement).scalar_one()
+
+
+def test_get_available_locations_returns_expected_fields_in_stable_order(
+  db_connection,
+):
+  locations = [
+    ("Zurich", "CH", None, 47.3769, 8.5417),
+    ("Charlotte", "US", "NC", 35.2271, -80.8431),
+    ("Charlotte", "CA", None, 46.1667, -60.25),
+    ("Charlotte", "US", None, 35.3, -80.7),
+  ]
+  location_ids = {}
+  for city, country_code, state, latitude, longitude in locations:
+    location_ids[(city, country_code, state)] = _insert_location(
+      db_connection,
+      city=city,
+      country_code=country_code,
+      state=state,
+      latitude=latitude,
+      longitude=longitude,
+    )
+
+  result = get_available_locations(db_connection)
+
+  assert result == {
+    "locations": [
+      {
+        "id": location_ids[("Charlotte", "CA", None)],
+        "city": "Charlotte",
+        "country_code": "CA",
+        "state": None,
+        "latitude": 46.1667,
+        "longitude": -60.25,
+      },
+      {
+        "id": location_ids[("Charlotte", "US", None)],
+        "city": "Charlotte",
+        "country_code": "US",
+        "state": None,
+        "latitude": 35.3,
+        "longitude": -80.7,
+      },
+      {
+        "id": location_ids[("Charlotte", "US", "NC")],
+        "city": "Charlotte",
+        "country_code": "US",
+        "state": "NC",
+        "latitude": 35.2271,
+        "longitude": -80.8431,
+      },
+      {
+        "id": location_ids[("Zurich", "CH", None)],
+        "city": "Zurich",
+        "country_code": "CH",
+        "state": None,
+        "latitude": 47.3769,
+        "longitude": 8.5417,
+      },
+    ]
+  }
+
+
+def test_get_location_observations_filters_orders_and_serializes_records(
+  db_connection,
+):
+  selected_location_id = _insert_location(
+    db_connection,
+    city="Charlotte",
+    country_code="US",
+    state="NC",
+    latitude=35.2271,
+    longitude=-80.8431,
+  )
+  other_location_id = _insert_location(
+    db_connection,
+    city="Raleigh",
+    country_code="US",
+    state="NC",
+    latitude=35.7796,
+    longitude=-78.6382,
+  )
+  earlier = datetime(2026, 9, 3, 12, 0, tzinfo=timezone.utc)
+  later = datetime(2026, 9, 3, 13, 0, tzinfo=timezone.utc)
+
+  db_connection.execute(insert(AirQualityRecord), [
+    {
+      "location_id": selected_location_id,
+      "observed_at": later,
+      "aqi": 3,
+      "pm2_5": 18.2,
+      "pm10": 21.1,
+      "no2": 37.5,
+      "o3": 8.4,
+    },
+    {
+      "location_id": other_location_id,
+      "observed_at": earlier,
+      "aqi": 4,
+      "pm2_5": 25.0,
+      "pm10": 30.0,
+      "no2": 40.0,
+      "o3": 50.0,
+    },
+    {
+      "location_id": selected_location_id,
+      "observed_at": earlier,
+      "aqi": 2,
+      "pm2_5": 13.5,
+      "pm10": 15.5,
+      "no2": 43.0,
+      "o3": 5.0,
+    },
+  ])
+
+  result = get_location_observations(
+    db_connection,
+    selected_location_id,
+  )
+
+  assert result == {
+    "location": {
+      "id": selected_location_id,
+      "city": "Charlotte",
+      "country_code": "US",
+      "state": "NC",
+      "latitude": 35.2271,
+      "longitude": -80.8431,
+    },
+    "observations": [
+      {
+        "observed_at": "2026-09-03T12:00:00Z",
+        "aqi": 2,
+        "pm2_5": 13.5,
+        "pm10": 15.5,
+        "no2": 43.0,
+        "o3": 5.0,
+      },
+      {
+        "observed_at": "2026-09-03T13:00:00Z",
+        "aqi": 3,
+        "pm2_5": 18.2,
+        "pm10": 21.1,
+        "no2": 37.5,
+        "o3": 8.4,
+      },
+    ],
+  }
+
+
+def test_get_location_observations_returns_empty_list_for_stored_location(
+  db_connection,
+):
+  location_id = _insert_location(
+    db_connection,
+    city="Charlotte",
+    country_code="US",
+    state="NC",
+    latitude=35.2271,
+    longitude=-80.8431,
+  )
+
+  result = get_location_observations(db_connection, location_id)
+
+  assert result is not None
+  assert result["location"]["id"] == location_id
+  assert result["observations"] == []
+
+
+def test_get_location_observations_returns_none_for_unknown_location(
+  db_connection,
+):
+  assert get_location_observations(db_connection, 999999999) is None
+
+
+def test_get_available_locations_propagates_database_errors():
+  connection = Mock()
+  connection.execute.side_effect = SQLAlchemyError("database read failed")
+
+  with pytest.raises(SQLAlchemyError, match="database read failed"):
+    get_available_locations(connection)
