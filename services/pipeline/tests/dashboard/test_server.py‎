@@ -1,0 +1,119 @@
+from unittest.mock import MagicMock, patch
+from sqlalchemy.exc import SQLAlchemyError
+from services.dashboard import server
+
+
+def _mock_engine():
+  database_engine = MagicMock()
+  database_engine.connect.return_value.__enter__.return_value = MagicMock()
+  return database_engine
+
+
+def test_locations_endpoint_returns_200():
+  engine = _mock_engine()
+  data_response = {
+    "locations": [{
+      "id": 42,
+      "city": "Charlotte",
+      "country_code": "US",
+      "state": "NC",
+      "latitude": 35.2271,
+      "longitude": -80.8431,
+    }]
+  }
+
+  with patch.object(
+    server,
+    "get_available_locations",
+    return_value=data_response,
+  ) as get_locations:
+    client = server.create_app(engine).test_client()
+    response = client.get("/api/locations")
+
+  connection = engine.connect.return_value.__enter__.return_value
+  get_locations.assert_called_once_with(connection)
+  assert response.status_code == 200
+  assert response.get_json() == data_response
+
+
+def test_observations_endpoint_returns_200_for_existing_location():
+  engine = _mock_engine()
+  data_response = {
+    "location": {
+      "id": 42,
+      "city": "Charlotte",
+      "country_code": "US",
+      "state": "NC",
+      "latitude": 35.2271,
+      "longitude": -80.8431,
+    },
+  "observations": [{
+      "observed_at": "2026-09-03T12:00:00Z",
+      "aqi": 2,
+      "pm2_5": 13.5,
+      "pm10": 15.5,
+      "no2": 43.0,
+      "o3": 5.0,
+    }],
+  }
+
+  with patch.object(
+    server,
+    "get_location_observations",
+    return_value=data_response,
+  ) as get_observations:
+    client = server.create_app(engine).test_client()
+    response = client.get("/api/locations/42/observations")
+
+  connection = engine.connect.return_value.__enter__.return_value
+  get_observations.assert_called_once_with(connection, 42)
+  assert response.status_code == 200
+  assert response.get_json() == data_response
+
+
+def test_observations_endpoint_returns_404_for_unknown_location():
+  engine = _mock_engine()
+
+  with patch.object(
+    server,
+    "get_location_observations",
+    return_value=None,
+  ):
+    client = server.create_app(engine).test_client()
+    response = client.get("/api/locations/999999999/observations")
+
+  assert response.status_code == 404
+  assert response.get_json() == {
+    "error": {
+      "code": "location_not_found",
+      "message": "Location not found",
+    }
+  }
+
+
+def test_database_error_returns_generic_json_with_500():
+  engine = _mock_engine()
+  raw_error = "password secret rejected by database"
+
+  with (
+    patch.object(
+      server,
+      "get_location_observations",
+      side_effect=SQLAlchemyError(raw_error),
+    ),
+    patch.object(server.logger, "exception") as log_exception,
+  ):
+    client = server.create_app(engine).test_client()
+    response = client.get("/api/locations/42/observations")
+
+  assert response.status_code == 500
+  assert response.get_json() == {
+    "error": {
+      "code": "database_error",
+      "message": "Unable to load dashboard data",
+    }
+  }
+  assert raw_error not in response.get_data(as_text=True)
+  log_exception.assert_called_once_with(
+    "Dashboard database operation failed"
+  )

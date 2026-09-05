@@ -1,9 +1,0 @@
-* [32mRaw-and-transformed-record-persistence[m
-  add-postgresql-migration-workflow[m
-  automated-transform-tests[m
-  feature/location-input-validation[m
-  feature/openweather-extract[m
-  feature/transform-normalization[m
-  main[m
-  sprint-3-transform-tests[m
-  sprint3-transform-integration[m
