@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getLocations } from "./api/airQualityApi";
+import CitySelector from "./components/CitySelector";
 
 import "./App.css";
 
@@ -7,6 +8,7 @@ function App() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
 
   useEffect(() => {
     async function loadLocations() {
@@ -37,7 +39,15 @@ function App() {
     return <div>Error: {error}</div>;
   }
 
-  return <div>City Air Tracker</div>;
+  return (
+    <div>
+      <CitySelector
+        locations={locations}
+        selectedLocationId={selectedLocationId}
+        onLocationChange={setSelectedLocationId}
+      />
+    </div>
+  );
 }
 
 export default App;
