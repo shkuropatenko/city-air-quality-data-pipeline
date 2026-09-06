@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getLocations } from "./api/airQualityApi";
 import CitySelector from "./components/CitySelector";
 import useAirQuality from "./hooks/useAirQuality";
+import SummaryCards from "./components/SummaryCards";
 
 import "./App.css";
 
@@ -47,21 +48,44 @@ function App() {
   }
 
   return (
-    <div>
-      <h1>City Air Tracker</h1>
+    <main className="dashboard">
+      <header className="dashboard-header">
+        <div>
+          <p className="dashboard-eyebrow">Environmental Data Platform</p>
 
-      <CitySelector
-        locations={locations}
-        selectedLocationId={selectedLocationId}
-        onLocationChange={setSelectedLocationId}
-      />
+          <h1 className="dashboard-title">City Air Tracker</h1>
 
-      {airQualityLoading && <p>Loading air quality data...</p>}
+          <p className="dashboard-subtitle">
+            Explore current air-quality measurements and trends across monitored
+            cities.
+          </p>
+        </div>
+      </header>
 
-      {airQualityError && <p>Error: {airQualityError}</p>}
+      <section className="dashboard-panel">
+        <div className="location-control">
+          <label htmlFor="location-select">Select location</label>
 
-      {airQualityData && <pre>{JSON.stringify(airQualityData, null, 2)}</pre>}
-    </div>
+          <CitySelector
+            locations={locations}
+            selectedLocationId={selectedLocationId}
+            onLocationChange={setSelectedLocationId}
+          />
+        </div>
+      </section>
+
+      {airQualityLoading && (
+        <div className="status-message">Loading air quality data...</div>
+      )}
+
+      {airQualityError && (
+        <div className="status-message">Error: {airQualityError}</div>
+      )}
+
+      {airQualityData && (
+        <SummaryCards observations={airQualityData.observations} />
+      )}
+    </main>
   );
 }
 

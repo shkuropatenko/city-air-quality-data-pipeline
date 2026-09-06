@@ -3,6 +3,7 @@ function CitySelector({ locations, selectedLocationId, onLocationChange }) {
 
   return (
     <select
+      id="location-select"
       value={selectedLocationId}
       onChange={(event) => onLocationChange(event.target.value)}
     >
