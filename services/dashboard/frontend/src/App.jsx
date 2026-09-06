@@ -3,6 +3,7 @@ import { getLocations } from "./api/airQualityApi";
 import CitySelector from "./components/CitySelector";
 import useAirQuality from "./hooks/useAirQuality";
 import SummaryCards from "./components/SummaryCards";
+import AirQualityChart from "./components/AirQualityChart";
 
 import "./App.css";
 
@@ -83,7 +84,11 @@ function App() {
       )}
 
       {airQualityData && (
-        <SummaryCards observations={airQualityData.observations} />
+        <>
+          <SummaryCards observations={airQualityData.observations} />
+
+          <AirQualityChart observations={airQualityData.observations} />
+        </>
       )}
     </main>
   );
