@@ -4,6 +4,8 @@ import CitySelector from "./components/CitySelector";
 import useAirQuality from "./hooks/useAirQuality";
 import SummaryCards from "./components/SummaryCards";
 import AirQualityChart from "./components/AirQualityChart";
+import StatusMessage from "./components/StatusMessage";
+import CityDetails from "./components/CityDetails";
 
 import "./App.css";
 
@@ -75,20 +77,39 @@ function App() {
         </div>
       </section>
 
+      {!selectedLocationId && (
+        <StatusMessage>
+          Select a location to explore air-quality measurements and historical
+          trends.
+        </StatusMessage>
+      )}
+
       {airQualityLoading && (
-        <div className="status-message">Loading air quality data...</div>
+        <StatusMessage>Loading air quality data...</StatusMessage>
       )}
 
       {airQualityError && (
         <div className="status-message">Error: {airQualityError}</div>
       )}
 
-      {airQualityData && (
+      {airQualityData?.observations?.length > 0 && (
         <>
           <SummaryCards observations={airQualityData.observations} />
-
           <AirQualityChart observations={airQualityData.observations} />
         </>
+      )}
+
+      {airQualityData && (
+        <CityDetails
+          location={airQualityData.location}
+          observations={airQualityData.observations}
+        />
+      )}
+
+      {airQualityData && airQualityData.observations.length === 0 && (
+        <StatusMessage>
+          No air-quality observations are available for this location.
+        </StatusMessage>
       )}
     </main>
   );
