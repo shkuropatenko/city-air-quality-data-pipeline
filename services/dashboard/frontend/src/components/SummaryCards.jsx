@@ -1,3 +1,15 @@
+function getAqiStatus(aqi) {
+  const statuses = {
+    1: "Good",
+    2: "Fair",
+    3: "Moderate",
+    4: "Poor",
+    5: "Very Poor",
+  };
+
+  return statuses[aqi] ?? "Unknown";
+}
+
 function SummaryCards({ observations }) {
   if (!observations?.length) {
     return null;
@@ -10,6 +22,7 @@ function SummaryCards({ observations }) {
       label: "Air Quality Index",
       value: latestObservation.aqi,
       unit: "",
+      status: getAqiStatus(latestObservation.aqi),
     },
     {
       label: "PM2.5",
@@ -36,7 +49,12 @@ function SummaryCards({ observations }) {
 
           <div className="summary-value-row">
             <span className="summary-value">{metric.value}</span>
+
             {metric.unit && <span className="summary-unit">{metric.unit}</span>}
+
+            {metric.status && (
+              <span className="aqi-status">{metric.status}</span>
+            )}
           </div>
         </article>
       ))}

@@ -238,3 +238,12 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+.aqi-status {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
