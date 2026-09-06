@@ -16,6 +16,6 @@ export async function getLocationObservations(locationId) {
   if (!response.ok) {
     throw new Error("Failed to load air quality data");
   }
-
-  return response.json();
+  const data = await response.json();
+  return data;
 }

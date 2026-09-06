@@ -1,75 +1,66 @@
 import { useEffect, useState } from "react";
-import { getLocations, getLocationObservations } from "./api/airQualityApi";
+import { getLocations } from "./api/airQualityApi";
 import CitySelector from "./components/CitySelector";
+import useAirQuality from "./hooks/useAirQuality";
 
 import "./App.css";
 
 function App() {
   const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [locationsLoading, setLocationsLoading] = useState(true);
+  const [locationsError, setLocationsError] = useState(null);
+
   const [selectedLocationId, setSelectedLocationId] = useState("");
-  const [airQualityData, setAirQualityData] = useState(null);
+
+  const {
+    data: airQualityData,
+    loading: airQualityLoading,
+    error: airQualityError,
+  } = useAirQuality(selectedLocationId);
 
   useEffect(() => {
     async function loadLocations() {
       try {
-        setLoading(true);
-        setError(null);
+        setLocationsLoading(true);
+        setLocationsError(null);
 
         const data = await getLocations();
-
         setLocations(data);
       } catch (err) {
-        setError(err.message);
+        setLocationsError(err.message);
       } finally {
-        setLoading(false);
+        setLocationsLoading(false);
       }
     }
 
     loadLocations();
   }, []);
 
-  useEffect(() => {
-    if (!selectedLocationId) {
-      return;
-    }
-
-    async function loadObservations() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const data = await getLocationObservations(selectedLocationId);
-
-        setAirQualityData(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadObservations();
-  }, [selectedLocationId]);
-
   console.log(airQualityData);
 
-  if (loading) {
-    return <div>Loading...</div>;
+  if (locationsLoading) {
+    return <div>Loading locations...</div>;
   }
 
-  if (error) {
-    return <div>Error: {error}</div>;
+  if (locationsError) {
+    return <div>Error: {locationsError}</div>;
   }
 
   return (
     <div>
+      <h1>City Air Tracker</h1>
+
       <CitySelector
         locations={locations}
         selectedLocationId={selectedLocationId}
         onLocationChange={setSelectedLocationId}
       />
+
+      {airQualityLoading && <p>Loading air quality data...</p>}
+
+      {airQualityError && <p>Error: {airQualityError}</p>}
+
+      {airQualityData && <pre>{JSON.stringify(airQualityData, null, 2)}</pre>}
     </div>
   );
 }
