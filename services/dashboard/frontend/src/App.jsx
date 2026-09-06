@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getLocations } from "./api/airQualityApi";
+import { getLocations, getLocationObservations } from "./api/airQualityApi";
 import CitySelector from "./components/CitySelector";
 
 import "./App.css";
@@ -9,6 +9,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedLocationId, setSelectedLocationId] = useState("");
+  const [airQualityData, setAirQualityData] = useState(null);
 
   useEffect(() => {
     async function loadLocations() {
@@ -29,7 +30,30 @@ function App() {
     loadLocations();
   }, []);
 
-  console.log(locations);
+  useEffect(() => {
+    if (!selectedLocationId) {
+      return;
+    }
+
+    async function loadObservations() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const data = await getLocationObservations(selectedLocationId);
+
+        setAirQualityData(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadObservations();
+  }, [selectedLocationId]);
+
+  console.log(airQualityData);
 
   if (loading) {
     return <div>Loading...</div>;

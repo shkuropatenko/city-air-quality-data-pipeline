@@ -1,43 +1,21 @@
-import { useEffect, useState } from "react";
-import { getLocations } from "./api/airQualityApi";
+export async function getLocations() {
+  const response = await fetch("/api/locations");
 
-import "./App.css";
-
-function App() {
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    async function loadLocations() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const data = await getLocations();
-
-        setLocations(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadLocations();
-  }, []);
-
-  console.log(locations);
-
-  if (loading) {
-    return <div>Loading...</div>;
+  if (!response.ok) {
+    throw new Error("Failed to load locations");
   }
 
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
+  const data = await response.json();
 
-  return <div>City Air Tracker</div>;
+  return data.locations;
 }
 
-export default App;
+export async function getLocationObservations(locationId) {
+  const response = await fetch(`/api/locations/${locationId}/observations`);
+
+  if (!response.ok) {
+    throw new Error("Failed to load air quality data");
+  }
+
+  return response.json();
+}
