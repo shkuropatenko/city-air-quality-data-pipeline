@@ -40,8 +40,6 @@ function App() {
     loadLocations();
   }, []);
 
-  console.log(airQualityData);
-
   if (locationsLoading) {
     return <div>Loading locations...</div>;
   }
@@ -59,8 +57,8 @@ function App() {
           <h1 className="dashboard-title">City Air Tracker</h1>
 
           <p className="dashboard-subtitle">
-            Explore current air-quality measurements and trends across monitored
-            cities.
+            Explore air-quality measurements and historical trends across
+            monitored cities.
           </p>
         </div>
       </header>
@@ -84,33 +82,43 @@ function App() {
         </StatusMessage>
       )}
 
-      {airQualityLoading && (
+      {airQualityLoading && !airQualityData && (
         <StatusMessage>Loading air quality data...</StatusMessage>
       )}
 
       {airQualityError && (
-        <div className="status-message">Error: {airQualityError}</div>
+        <StatusMessage>Error: {airQualityError}</StatusMessage>
       )}
 
-      {airQualityData?.observations?.length > 0 && (
-        <>
-          <SummaryCards observations={airQualityData.observations} />
-          <AirQualityChart observations={airQualityData.observations} />
-        </>
-      )}
+      <div className="dashboard-content">
+        {/* Switching between cities */}
+        {airQualityLoading && airQualityData && (
+          <div className="loading-overlay">Updating data...</div>
+        )}
 
-      {airQualityData && (
-        <CityDetails
-          location={airQualityData.location}
-          observations={airQualityData.observations}
-        />
-      )}
+        {/* Dashboard data */}
+        {!airQualityError && airQualityData?.observations?.length > 0 && (
+          <>
+            <SummaryCards observations={airQualityData.observations} />
 
-      {airQualityData && airQualityData.observations.length === 0 && (
-        <StatusMessage>
-          No air-quality observations are available for this location.
-        </StatusMessage>
-      )}
+            <AirQualityChart observations={airQualityData.observations} />
+
+            <CityDetails
+              location={airQualityData.location}
+              observations={airQualityData.observations}
+            />
+          </>
+        )}
+
+        {/* No data */}
+        {!airQualityLoading &&
+          !airQualityError &&
+          airQualityData?.observations?.length === 0 && (
+            <StatusMessage>
+              No air-quality observations are available for this location.
+            </StatusMessage>
+          )}
+      </div>
     </main>
   );
 }

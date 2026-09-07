@@ -31,7 +31,7 @@ function CityDetails({ location, observations }) {
 
         <div>
           <span className="detail-label">Longitude</span>
-          <strong>{location.longitude}</strong>
+          <strong>{Number(location.longitude).toFixed(4)}</strong>
         </div>
 
         <div>
