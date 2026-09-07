@@ -7,8 +7,12 @@ function useAirQuality(selectedLocationId) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let ignore = false;
+
     if (!selectedLocationId) {
-      return;
+      return () => {
+        ignore = true;
+      };
     }
 
     async function loadObservations() {
@@ -18,18 +22,32 @@ function useAirQuality(selectedLocationId) {
 
         const result = await getLocationObservations(selectedLocationId);
 
-        setData(result);
+        if (!ignore) {
+          setData(result);
+        }
       } catch (err) {
-        setError(err.message);
+        if (!ignore) {
+          setError(err.message);
+        }
       } finally {
-        setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
     }
 
     loadObservations();
+
+    return () => {
+      ignore = true;
+    };
   }, [selectedLocationId]);
 
-  return { data, loading, error };
+  return {
+    data: selectedLocationId ? data : null,
+    loading: selectedLocationId ? loading : false,
+    error: selectedLocationId ? error : null,
+  };
 }
 
 export default useAirQuality;
