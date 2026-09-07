@@ -22,6 +22,8 @@ function useAirQuality(selectedLocationId) {
 
         const result = await getLocationObservations(selectedLocationId);
 
+        // Prevent an older request from overwriting state after
+        // the user has already switched to another location.
         if (!ignore) {
           setData(result);
         }
@@ -38,6 +40,7 @@ function useAirQuality(selectedLocationId) {
 
     loadObservations();
 
+    // Mark this request as stale when the location changes or the hook unmounts.
     return () => {
       ignore = true;
     };

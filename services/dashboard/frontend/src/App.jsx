@@ -37,6 +37,8 @@ function App() {
       }
     }
 
+    // Locations are loaded once when the dashboard first mounts.
+    // They do not depend on the currently selected location.
     loadLocations();
   }, []);
 
@@ -91,7 +93,7 @@ function App() {
       )}
 
       <div className="dashboard-content">
-        {/* Switching between cities */}
+        {/* Keep the current dashboard mounted while new data loads to avoid layout collapse when switching locations. */}
         {airQualityLoading && airQualityData && (
           <div className="loading-overlay">Updating data...</div>
         )}
