@@ -22,6 +22,7 @@ function AirQualityChart({ observations }) {
     pm2_5: observation.pm2_5,
     pm10: observation.pm10,
     o3: observation.o3,
+    aqi: observation.aqi,
   }));
 
   return (
@@ -32,7 +33,7 @@ function AirQualityChart({ observations }) {
           <h2>Air Quality Over Time</h2>
         </div>
 
-        <span className="chart-unit">µg/m³</span>
+        <span className="chart-unit">Pollutants: µg/m³ · AQI: 1–5</span>
       </div>
 
       <div className="chart-container">
@@ -50,12 +51,23 @@ function AirQualityChart({ observations }) {
               minTickGap={40}
             />
 
-            <YAxis tickLine={false} axisLine={false} />
+            <YAxis yAxisId="pollutants" tickLine={false} axisLine={false} />
+
+            <YAxis
+              yAxisId="aqi"
+              orientation="right"
+              domain={[1, 5]}
+              ticks={[1, 2, 3, 4, 5]}
+              allowDecimals={false}
+              tickLine={false}
+              axisLine={false}
+            />
 
             <Tooltip />
             <Legend />
 
             <Line
+              yAxisId="pollutants"
               type="monotone"
               dataKey="pm2_5"
               name="PM2.5"
@@ -65,6 +77,7 @@ function AirQualityChart({ observations }) {
             />
 
             <Line
+              yAxisId="pollutants"
               type="monotone"
               dataKey="pm10"
               name="PM10"
@@ -74,10 +87,21 @@ function AirQualityChart({ observations }) {
             />
 
             <Line
+              yAxisId="pollutants"
               type="monotone"
               dataKey="o3"
               name="Ozone"
               stroke="#0891b2"
+              strokeWidth={2}
+              dot={false}
+            />
+
+            <Line
+              yAxisId="aqi"
+              type="monotone"
+              dataKey="aqi"
+              name="AQI"
+              stroke="#dc2626"
               strokeWidth={2}
               dot={false}
             />
