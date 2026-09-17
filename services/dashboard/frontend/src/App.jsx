@@ -1,127 +1,86 @@
-import { useEffect, useState } from "react";
-import { getLocations } from "./api/airQualityApi";
-import CitySelector from "./components/CitySelector";
-import useAirQuality from "./hooks/useAirQuality";
-import SummaryCards from "./components/SummaryCards";
-import AirQualityChart from "./components/AirQualityChart";
-import StatusMessage from "./components/StatusMessage";
-import CityDetails from "./components/CityDetails";
-
-import "./App.css";
-
+import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { useObservations } from "./hooks/useObservations";
+import LocationSelect from "./components/LocationSelect";
 function App() {
   const [locations, setLocations] = useState([]);
-  const [locationsLoading, setLocationsLoading] = useState(true);
-  const [locationsError, setLocationsError] = useState(null);
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedLocationId, setSelectedLocationId] = useState("");
 
-  const {
-    data: airQualityData,
-    loading: airQualityLoading,
-    error: airQualityError,
-  } = useAirQuality(selectedLocationId);
+  const { observations, loadingObservations, observationsError } =
+    useObservations(selectedLocationId);
+
+  const handleLocationChange = useCallback((event) => {
+    setSelectedLocationId(event.target.value);
+  }, []);
 
   useEffect(() => {
     async function loadLocations() {
       try {
-        setLocationsLoading(true);
-        setLocationsError(null);
+        const response = await fetch("/api/locations");
 
-        const data = await getLocations();
-        setLocations(data);
-      } catch (err) {
-        setLocationsError(err.message);
+        if (!response.ok) {
+          throw new Error("Failed to load locations");
+        }
+
+        const data = await response.json();
+
+        setLocations(data.locations);
+      } catch (error) {
+        setError(error.message);
       } finally {
-        setLocationsLoading(false);
+        setLoading(false);
       }
     }
 
-    // Locations are loaded once when the dashboard first mounts.
-    // They do not depend on the currently selected location.
     loadLocations();
   }, []);
 
-  if (locationsLoading) {
-    return <div>Loading locations...</div>;
+  const chartData = useMemo(() => {
+    return observations.map((observation) => {
+      return {
+        ...observation,
+        time: new Date(observation.observed_at).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+    });
+  }, [observations]);
+
+  if (loading) {
+    return <p>Loading...</p>;
+  }
+  if (error) {
+    return <p>Error - {error}...</p>;
   }
 
-  if (locationsError) {
-    return <div>Error: {locationsError}</div>;
-  }
-
+  // console.log(observations);
   return (
-    <main className="dashboard">
-      <header className="dashboard-header">
-        <div>
-          <p className="dashboard-eyebrow">Environmental Data Platform</p>
-
-          <h1 className="dashboard-title">City Air Tracker</h1>
-
-          <p className="dashboard-subtitle">
-            Explore air-quality measurements and historical trends across
-            monitored cities.
-          </p>
-        </div>
-      </header>
-
-      <section className="dashboard-panel">
-        <div className="location-control">
-          <label htmlFor="location-select">Select location</label>
-
-          <CitySelector
-            locations={locations}
-            selectedLocationId={selectedLocationId}
-            onLocationChange={setSelectedLocationId}
-          />
-        </div>
-      </section>
-
-      {!selectedLocationId && (
-        <StatusMessage>
-          Select a location to explore air-quality measurements and historical
-          trends.
-        </StatusMessage>
-      )}
-
-      {airQualityLoading && !airQualityData && (
-        <StatusMessage>Loading air quality data...</StatusMessage>
-      )}
-
-      {airQualityError && (
-        <StatusMessage>Error: {airQualityError}</StatusMessage>
-      )}
-
-      <div className="dashboard-content">
-        {/* Keep the current dashboard mounted while new data loads to avoid layout collapse when switching locations. */}
-        {airQualityLoading && airQualityData && (
-          <div className="loading-overlay">Updating data...</div>
-        )}
-
-        {/* Dashboard data */}
-        {!airQualityError && airQualityData?.observations?.length > 0 && (
-          <>
-            <SummaryCards observations={airQualityData.observations} />
-
-            <AirQualityChart observations={airQualityData.observations} />
-
-            <CityDetails
-              location={airQualityData.location}
-              observations={airQualityData.observations}
-            />
-          </>
-        )}
-
-        {/* No data */}
-        {!airQualityLoading &&
-          !airQualityError &&
-          airQualityData?.observations?.length === 0 && (
-            <StatusMessage>
-              No air-quality observations are available for this location.
-            </StatusMessage>
-          )}
-      </div>
-    </main>
+    <>
+      <h1>City Air Tracker</h1>
+      <LocationSelect
+        locations={locations}
+        selectedLocationId={selectedLocationId}
+        onLocationChange={handleLocationChange}
+      />
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={chartData}>
+          <XAxis dataKey="time" />
+          <YAxis />
+          <Tooltip />
+          <Line dataKey="pm2_5" />
+        </LineChart>
+      </ResponsiveContainer>
+    </>
   );
 }
 
